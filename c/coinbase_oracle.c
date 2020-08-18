@@ -1,12 +1,12 @@
 #include "blake2b.h"
-#include "protocol.h"
-#include "secp256k1_helper.h"
 #include "ckb_syscalls.h"
 #include "keccak256.h"
+#include "protocol.h"
+#include "secp256k1_helper.h"
 
 #define BLAKE160_SIZE 20
 #define SCRIPT_SIZE 32768
-#define LOCK_ARGS_SIZE 37
+#define LOCK_ARGS_SIZE 25
 #define DATE_SIZE 256
 #define SYMBOL_SIZE 10
 #define PUBKEY_SIZE 65
@@ -23,7 +23,7 @@
 #define ERROR_ENCODING -2
 #define ERROR_SYSCALL -3
 #define ERROR_SCRIPT_TOO_LONG -21
-#define ERROR_MULTI_OUTPUT -61
+#define ERROR_OUTPUT -81
 /* secp256k1 unlock errors */
 #define ERROR_SECP_RECOVER_PUBKEY -11
 #define ERROR_SECP_VERIFICATION -12
@@ -64,15 +64,15 @@ int read_args(unsigned char *eth_address, unsigned char *symbol) {
     return ERROR_ARGUMENTS_LEN;
   }
   memcpy(eth_address, args_bytes_seg.ptr, BLAKE160_SIZE);
-  for(size_t i = 0; i < 8; ++i ) {
+  for (size_t i = 0; i < 8; ++i) {
     symbol[i] = args_bytes_seg.ptr[i + BLAKE160_SIZE];
   }
-  
+
   return CKB_SUCCESS;
 }
 
-int verify_signature(unsigned char *message, unsigned char *lock_bytes, const void * lock_args){
-
+int verify_signature(unsigned char *message, unsigned char *lock_bytes,
+                     const void *lock_args) {
   unsigned char temp[TEMP_SIZE];
 
   /* Load signature */
@@ -114,48 +114,55 @@ int verify_signature(unsigned char *message, unsigned char *lock_bytes, const vo
   return CKB_SUCCESS;
 }
 
-int verify_secp256k1_keccak_sighash_all(unsigned char message[DATE_SIZE], unsigned char eth_address[BLAKE160_SIZE]) {
+int verify_secp256k1_keccak_sighash_all(
+    unsigned char message[DATE_SIZE],
+    unsigned char eth_address[BLAKE160_SIZE]) {
   unsigned char signature[SIGNATURE_SIZE];
+  unsigned char origin[32];
 
-  uint64_t witness_len = MAX_WITNESS_SIZE;
-  size_t ret = ckb_load_witness(signature, &witness_len, 0, 0, CKB_SOURCE_GROUP_INPUT);
+  uint64_t witness_len = SIGNATURE_SIZE;
+  size_t ret =
+      ckb_load_witness(signature, &witness_len, 0, 0, CKB_SOURCE_GROUP_INPUT);
   if (ret != CKB_SUCCESS) {
     return ERROR_SYSCALL;
   }
+  if (witness_len != SIGNATURE_SIZE) {
+    return ERROR_WITNESS_SIZE;
+  }
 
+  // compute massge hash
   SHA3_CTX sha3_ctx;
   keccak_init(&sha3_ctx);
-  unsigned char eth_prefix[28]= {
-0x19, 0x45, 0x74, 0x68, 0x65, 0x72, 0x65, 0x75, 0x6d, 0x20, 0x53, 0x69 ,0x67, 0x6e, 0x65, 0x64, 0x20, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x3a, 0x0a, 0x33, 0x32
-  };
-  keccak_update(&sha3_ctx, eth_prefix, 28);
-  keccak_update(&sha3_ctx, message, 32);
-  keccak_final(&sha3_ctx, message);
+  keccak_update(&sha3_ctx, message, DATE_SIZE);
+  keccak_final(&sha3_ctx, origin);
 
-  return verify_signature(message, signature, eth_address);
+  // compute personal message hash
+  keccak_init(&sha3_ctx);
+  unsigned char eth_prefix[28] = {0x19, 0x45, 0x74, 0x68, 0x65, 0x72, 0x65,
+                                  0x75, 0x6d, 0x20, 0x53, 0x69, 0x67, 0x6e,
+                                  0x65, 0x64, 0x20, 0x4d, 0x65, 0x73, 0x73,
+                                  0x61, 0x67, 0x65, 0x3a, 0x0a, 0x33, 0x32};
+  keccak_update(&sha3_ctx, eth_prefix, 28);
+  keccak_update(&sha3_ctx, origin, 32);
+  keccak_final(&sha3_ctx, origin);
+
+  return verify_signature(origin, signature, eth_address);
 }
 
 int main() {
   unsigned char buffer[DATE_SIZE];
 
-  size_t i = 0;
   uint64_t len = DATE_SIZE;
   int ret = 0;
-  while (1) {
-    ret = ckb_load_cell_data(&buffer, &len, 0, i, CKB_SOURCE_GROUP_OUTPUT);
-    if (ret == CKB_INDEX_OUT_OF_BOUND) {
-      break;
-    }
-    if (ret != CKB_SUCCESS) {
-      return ret;
-    }
-    if (len < DATE_SIZE) {
-      return ERROR_ENCODING;
-    }
-    i += 1;
+  ret = ckb_load_cell_data(&buffer, &len, 0, 0, CKB_SOURCE_OUTPUT);
+  if (ret == CKB_INDEX_OUT_OF_BOUND) {
+    return ERROR_OUTPUT;
   }
-  if (i != 1) {
-    return ERROR_MULTI_OUTPUT;
+  if (ret != CKB_SUCCESS) {
+    return ret;
+  }
+  if (len != DATE_SIZE) {
+    return ERROR_ENCODING;
   }
 
   unsigned char eth_address[BLAKE160_SIZE];
