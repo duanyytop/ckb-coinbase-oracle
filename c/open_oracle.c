@@ -6,9 +6,8 @@
 
 #define BLAKE160_SIZE 20
 #define SCRIPT_SIZE 32768
-#define LOCK_ARGS_SIZE 25
+#define LOCK_ARGS_SIZE 20
 #define DATE_SIZE 256
-#define SYMBOL_SIZE 10
 #define PUBKEY_SIZE 65
 #define TEMP_SIZE 32768
 #define RECID_INDEX 64
@@ -36,7 +35,7 @@
 #define ERROR_INCORRECT_SINCE_VALUE -24
 #define ERROR_PUBKEY_BLAKE160_HASH -31
 
-int read_args(unsigned char *eth_address, unsigned char *symbol) {
+int read_args(unsigned char *eth_address) {
   int ret;
   uint64_t len = 0;
 
@@ -64,9 +63,6 @@ int read_args(unsigned char *eth_address, unsigned char *symbol) {
     return ERROR_ARGUMENTS_LEN;
   }
   memcpy(eth_address, args_bytes_seg.ptr, BLAKE160_SIZE);
-  for (size_t i = 0; i < 8; ++i) {
-    symbol[i] = args_bytes_seg.ptr[i + BLAKE160_SIZE];
-  }
 
   return CKB_SUCCESS;
 }
@@ -122,7 +118,7 @@ int verify_secp256k1_keccak_sighash_all(
 
   uint64_t witness_len = SIGNATURE_SIZE;
   size_t ret =
-      ckb_load_witness(signature, &witness_len, 0, 0, CKB_SOURCE_GROUP_INPUT);
+      ckb_load_witness(signature, &witness_len, 0, 1, CKB_SOURCE_GROUP_INPUT);
   if (ret != CKB_SUCCESS) {
     return ERROR_SYSCALL;
   }
@@ -130,7 +126,7 @@ int verify_secp256k1_keccak_sighash_all(
     return ERROR_WITNESS_SIZE;
   }
 
-  // compute massge hash
+  // compute message hash
   SHA3_CTX sha3_ctx;
   keccak_init(&sha3_ctx);
   keccak_update(&sha3_ctx, message, DATE_SIZE);
@@ -166,8 +162,7 @@ int main() {
   }
 
   unsigned char eth_address[BLAKE160_SIZE];
-  unsigned char symbol[SYMBOL_SIZE];
-  ret = read_args(eth_address, symbol);
+  ret = read_args(eth_address);
   if (ret != CKB_SUCCESS) {
     return ret;
   }
