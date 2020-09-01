@@ -3,6 +3,7 @@
 #include "keccak256.h"
 #include "protocol.h"
 #include "secp256k1_helper.h"
+#include "stdio.h"
 
 #define BLAKE160_SIZE 20
 #define SCRIPT_SIZE 32768
@@ -104,7 +105,7 @@ int verify_signature(unsigned char *message, unsigned char *signed_bytes,
   keccak_final(&sha3_ctx, temp);
 
   printf("args: %p\n", args);
-  printf("temp: %p\n", temp);
+  printf("temp: %s\n", temp);
 
   if (memcmp(args, &temp[12], BLAKE160_SIZE) != 0) {
     return ERROR_PUBKEY_BLAKE160_HASH;
