@@ -2,7 +2,7 @@ TARGET := riscv64-unknown-elf
 CC := $(TARGET)-gcc
 LD := $(TARGET)-gcc
 OBJCOPY := $(TARGET)-objcopy
-CFLAGS := -O3 -Ideps/molecule -I deps/secp256k1/src -I deps/secp256k1 -I deps/ckb-c-std-lib -I c -I build -Wall -Werror -Wno-nonnull-compare -Wno-unused-function -g
+CFLAGS := -O3 -Ideps/molecule -I deps/secp256k1/src -I deps/secp256k1 -I deps/ckb-c-std-lib -I c -I build -Wall -Werror -Wno-nonnull-compare -Wno-unused-function -g -D CKB_C_STDLIB_PRINTF
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 SECP256K1_SRC := deps/secp256k1/src/ecmult_static_pre_context.h
 MOLC := moleculec
@@ -28,7 +28,7 @@ specs/cells/always_success: c/always_success.c
 specs/cells/open_oracle: c/open_oracle.c ${PROTOCOL_HEADER} build/secp256k1_data_info.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $(subst specs/cells,build,$@.debug)
-	$(OBJCOPY) --strip-debug --strip-all $@
+	$(OBJCOPY) --strip-debug --strip-all $@ 
 
 build/secp256k1_data_info.h: build/dump_secp256k1_data
 	$<

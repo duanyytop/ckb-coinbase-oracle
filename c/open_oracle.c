@@ -67,8 +67,8 @@ int read_args(unsigned char *eth_address) {
   return CKB_SUCCESS;
 }
 
-int verify_signature(unsigned char *message, unsigned char *lock_bytes,
-                     const void *lock_args) {
+int verify_signature(unsigned char *message, unsigned char *signed_bytes,
+                     const void *args) {
   unsigned char temp[TEMP_SIZE];
 
   /* Load signature */
@@ -81,7 +81,7 @@ int verify_signature(unsigned char *message, unsigned char *lock_bytes,
 
   secp256k1_ecdsa_recoverable_signature signature;
   if (secp256k1_ecdsa_recoverable_signature_parse_compact(
-          &context, &signature, lock_bytes, lock_bytes[RECID_INDEX]) == 0) {
+          &context, &signature, signed_bytes, signed_bytes[RECID_INDEX]) == 0) {
     return ERROR_SECP_PARSE_SIGNATURE;
   }
 
@@ -103,7 +103,10 @@ int verify_signature(unsigned char *message, unsigned char *lock_bytes,
   keccak_update(&sha3_ctx, &temp[1], pubkey_size - 1);
   keccak_final(&sha3_ctx, temp);
 
-  if (memcmp(lock_args, &temp[12], BLAKE160_SIZE) != 0) {
+  printf("args: %p\n", args);
+  printf("temp: %p\n", temp);
+
+  if (memcmp(args, &temp[12], BLAKE160_SIZE) != 0) {
     return ERROR_PUBKEY_BLAKE160_HASH;
   }
 
@@ -150,7 +153,7 @@ int main() {
 
   uint64_t len = DATE_SIZE;
   int ret = 0;
-  ret = ckb_load_cell_data(&buffer, &len, 0, 0, CKB_SOURCE_OUTPUT);
+  ret = ckb_load_cell_data(&buffer, &len, 0, 1, CKB_SOURCE_OUTPUT);
   if (ret == CKB_INDEX_OUT_OF_BOUND) {
     return ERROR_OUTPUT;
   }
