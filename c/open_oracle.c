@@ -34,7 +34,7 @@
 #define ERROR_WITNESS_SIZE -22
 #define ERROR_INCORRECT_SINCE_FLAGS -23
 #define ERROR_INCORRECT_SINCE_VALUE -24
-#define ERROR_PUBKEY_BLAKE160_HASH -31
+#define ERROR_PUBKEY_BLAKE160_HASH -30
 
 int read_args(unsigned char *eth_address) {
   int ret;
@@ -106,6 +106,7 @@ int verify_signature(unsigned char *message, unsigned char *signed_bytes,
 
   printf("args: %p\n", args);
   printf("temp: %s\n", temp);
+  ckb_debug(args);
 
   if (memcmp(args, &temp[12], BLAKE160_SIZE) != 0) {
     return ERROR_PUBKEY_BLAKE160_HASH;
@@ -151,7 +152,6 @@ int verify_secp256k1_keccak_sighash_all(
 
 int main() {
   unsigned char buffer[DATE_SIZE];
-
   uint64_t len = DATE_SIZE;
   int ret = 0;
   ret = ckb_load_cell_data(&buffer, &len, 0, 1, CKB_SOURCE_OUTPUT);
