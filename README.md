@@ -2,8 +2,9 @@
 
 ## Build
 
-``` sh
+```sh
 git submodule init
 git submodule update
+make clean
 make all-via-docker
 ```
