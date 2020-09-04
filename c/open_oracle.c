@@ -3,7 +3,6 @@
 #include "keccak256.h"
 #include "protocol.h"
 #include "secp256k1_helper.h"
-#include "stdio.h"
 
 #define BLAKE160_SIZE 20
 #define SCRIPT_SIZE 32768
@@ -22,6 +21,8 @@
 #define ERROR_ARGUMENTS_LEN -1
 #define ERROR_ENCODING -2
 #define ERROR_SYSCALL -3
+#define ERROR_SYSCALL_SCRIPT -4
+#define ERROR_SYSCALL_WITNESS -5
 #define ERROR_SCRIPT_TOO_LONG -21
 #define ERROR_OUTPUT -81
 /* secp256k1 unlock errors */
@@ -45,7 +46,7 @@ int read_args(unsigned char *eth_address) {
   len = SCRIPT_SIZE;
   ret = ckb_load_script(script, &len, 0);
   if (ret != CKB_SUCCESS) {
-    return ERROR_SYSCALL;
+    return ERROR_SYSCALL_SCRIPT;
   }
   if (len > SCRIPT_SIZE) {
     return ERROR_SCRIPT_TOO_LONG;
@@ -104,10 +105,6 @@ int verify_signature(unsigned char *message, unsigned char *signed_bytes,
   keccak_update(&sha3_ctx, &temp[1], pubkey_size - 1);
   keccak_final(&sha3_ctx, temp);
 
-  printf("args: %p\n", args);
-  printf("temp: %s\n", temp);
-  ckb_debug(args);
-
   if (memcmp(args, &temp[12], BLAKE160_SIZE) != 0) {
     return ERROR_PUBKEY_BLAKE160_HASH;
   }
@@ -123,9 +120,9 @@ int verify_secp256k1_keccak_sighash_all(
 
   uint64_t witness_len = SIGNATURE_SIZE;
   size_t ret =
-      ckb_load_witness(signature, &witness_len, 0, 1, CKB_SOURCE_GROUP_INPUT);
+      ckb_load_witness(signature, &witness_len, 0, 0, CKB_SOURCE_GROUP_INPUT);
   if (ret != CKB_SUCCESS) {
-    return ERROR_SYSCALL;
+    return ERROR_SYSCALL_WITNESS;
   }
   if (witness_len != SIGNATURE_SIZE) {
     return ERROR_WITNESS_SIZE;
@@ -154,7 +151,7 @@ int main() {
   unsigned char buffer[DATE_SIZE];
   uint64_t len = DATE_SIZE;
   int ret = 0;
-  ret = ckb_load_cell_data(&buffer, &len, 0, 1, CKB_SOURCE_OUTPUT);
+  ret = ckb_load_cell_data(&buffer, &len, 0, 0, CKB_SOURCE_OUTPUT);
   if (ret == CKB_INDEX_OUT_OF_BOUND) {
     return ERROR_OUTPUT;
   }
